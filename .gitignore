@@ -1,0 +1,11 @@
+node_modules/
+main.js
+*.js.map
+.DS_Store
+coverage/
+
+# AI tool session/local state — not project content
+.claude/
+.engram/
+.dual-graph/
+.atl/

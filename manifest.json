@@ -1,0 +1,10 @@
+{
+	"id": "watchlog-sync-bridge",
+	"name": "WatchLog Sync Bridge",
+	"version": "0.1.0",
+	"minAppVersion": "0.15.0",
+	"description": "Bridges WatchLog's per-device library index across devices synced with yaos, without forking either plugin.",
+	"author": "Tomas Nicolorich",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}

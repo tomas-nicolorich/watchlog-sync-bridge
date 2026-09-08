@@ -1,0 +1,25 @@
+{
+	"name": "watchlog-sync-bridge",
+	"version": "0.1.0",
+	"description": "Bridges WatchLog's per-device library index across devices synced with yaos, without forking either plugin.",
+	"main": "main.js",
+	"private": true,
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck",
+		"test": "vitest run"
+	},
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^20.14.0",
+		"builtin-modules": "^3.3.0",
+		"esbuild": "^0.21.5",
+		"obsidian": "^1.5.7",
+		"typescript": "^5.5.4",
+		"vitest": "^2.0.5"
+	},
+	"allowScripts": {
+		"esbuild@0.21.5": true
+	}
+}
