@@ -1,0 +1,62 @@
+schema: spec-driven
+
+context: |
+  Project: watchlog-sync-bridge (Obsidian companion plugin, brand new, no code yet)
+  Tech stack (expected): TypeScript, esbuild bundler, obsidian API types, manifest.json
+  Reference structure: github.com/kavinsood/yaos (sibling plugin, not forked/vendored)
+  Architecture: poll-based bridge exporting WatchLog's data.json to a vault-visible
+    blob file so it rides yaos's unmodified blob-sync path; watches vault.on(modify)
+    to merge entries back via app.vault.adapter.write()
+  Testing: none yet - no package.json / test runner present at init time
+  Style: not yet established (no code exists)
+
+strict_tdd: true
+
+testing:
+  test_runner: none (not yet initialized)
+  test_layers:
+    unit: false
+    integration: false
+    e2e: false
+  coverage:
+    available: false
+    command: ""
+  quality_tools:
+    linter: none (recommend eslint + @typescript-eslint)
+    type_checker: none (recommend tsc --noEmit)
+    formatter: none (recommend prettier)
+  note: |
+    Strict TDD is enabled per user global marker, but no test runner exists yet
+    (brand-new project, no package.json). sdd-tasks/sdd-apply MUST scaffold a
+    test runner (recommend vitest) as an early task before any RED-GREEN-REFACTOR
+    implementation work, since strict TDD cannot be honored without one.
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Do not propose forking or vendoring yaos or WatchLog source (non-goal, see CLAUDE.md)
+    - Do not propose patching yaos's exclude.ts as a fix (confirmed insufficient, see CLAUDE.md)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Cover both desktop and mobile behavior explicitly (poll-based sync, no native fs events on mobile)
+  design:
+    - Include sequence diagrams for complex flows (sync/merge cycle across devices)
+    - Document architecture decisions with rationale
+    - Define the per-entry merge policy for WatchLog's titles array (id, dateAdded, history) explicitly
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - First task must scaffold TypeScript + esbuild + manifest.json + a test runner
+  apply:
+    guidelines:
+      - Follow existing code patterns (once established)
+      - Mirror yaos's poll-based reconciliation approach (diskIndex.ts) rather than relying on native fs events
+    tdd: true
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
