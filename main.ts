@@ -239,11 +239,13 @@ export default class WatchLogSyncBridgePlugin extends Plugin {
 	 * WatchLog's own automatic live refresh did not pick up a change.
 	 */
 	private async reloadWatchLog(): Promise<void> {
-		const plugins = (this.app as unknown as { plugins?: Record<string, unknown> }).plugins;
-		const disablePlugin = plugins?.disablePlugin;
-		const enablePlugin = plugins?.enablePlugin;
+		const plugins = (
+			this.app as unknown as {
+				plugins?: { disablePlugin?: (id: string) => Promise<void>; enablePlugin?: (id: string) => Promise<void> };
+			}
+		).plugins;
 
-		if (typeof disablePlugin !== "function" || typeof enablePlugin !== "function") {
+		if (typeof plugins?.disablePlugin !== "function" || typeof plugins?.enablePlugin !== "function") {
 			new Notice(
 				"WatchLog Sync Bridge: automatic reload isn't available on this Obsidian version. Please reopen the WatchLog view manually.",
 			);
@@ -251,8 +253,8 @@ export default class WatchLogSyncBridgePlugin extends Plugin {
 		}
 
 		try {
-			await (disablePlugin as (id: string) => Promise<void>)("watchlog");
-			await (enablePlugin as (id: string) => Promise<void>)("watchlog");
+			await plugins.disablePlugin("watchlog");
+			await plugins.enablePlugin("watchlog");
 			new Notice("WatchLog Sync Bridge: reloaded the WatchLog plugin.");
 		} catch (err) {
 			this.log("WatchLog reload cycle failed", err);
