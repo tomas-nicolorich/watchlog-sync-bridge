@@ -35,7 +35,7 @@ syncs over yaos just fine.
 - **yaos DOES support syncing plain, non-markdown files under normal vault
   folders** as "blobs" (see `src/paths/pathCategory.ts`: non-`.md`,
   non-excluded paths classify as `blob`, handled by `src/sync/blobSync.ts`).
-  A JSON file placed in an ordinary vault folder (e.g. `WatchLog/.sync/`)
+  A JSON file placed in an ordinary vault folder (e.g. `WatchLog/Sync/`)
   syncs like any other vault file — no yaos changes needed.
 - **WatchLog's UI list is driven only by `this.data.titles`** (the array in
   its own `data.json`), populated via the plugin's own `loadData()`/

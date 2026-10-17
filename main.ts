@@ -5,7 +5,7 @@ import { runExportCycle } from "./src/export";
 import { getOrCreateDeviceId, sanitizeDeviceIdForFilename } from "./src/identity";
 import { recoverPendingWrite } from "./src/watchlogIo";
 import { Scheduler } from "./src/scheduler";
-import { DEFAULT_SETTINGS, WatchLogSyncBridgeSettingTab } from "./src/settings";
+import { DEFAULT_SETTINGS, WatchLogSyncBridgeSettingTab, normalizeSyncDirPath } from "./src/settings";
 import type { BridgeData } from "./src/types";
 
 /** WatchLog's own local index file — read always, written only by `importOnce`
@@ -101,7 +101,11 @@ export default class WatchLogSyncBridgePlugin extends Plugin {
 
 		this.data = {
 			deviceId,
-			settings: { ...DEFAULT_SETTINGS, ...stored?.settings },
+			settings: {
+				...DEFAULT_SETTINGS,
+				...stored?.settings,
+				syncDirPath: normalizeSyncDirPath(stored?.settings?.syncDirPath),
+			},
 			lastExport: stored?.lastExport,
 			titleState: stored?.titleState ?? {},
 			peerState: stored?.peerState ?? {},

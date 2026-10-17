@@ -11,7 +11,7 @@ yaos never syncs anything under `.obsidian/` (hardcoded, and Obsidian's
 stores its entire `titles` library inside
 `.obsidian/plugins/watchlog/data.json`. This bridge polls that file on each
 device, exports a per-device snapshot to a normal, vault-visible file under
-`WatchLog/.sync/` (which rides yaos's existing, unmodified sync path for
+`WatchLog/Sync/` (which rides yaos's existing, unmodified sync path for
 plain vault files), and merges peer snapshots back into WatchLog's own
 `data.json`. See `CLAUDE.md` and `openspec/changes/watchlog-index-bridge/`
 for the full design rationale.
@@ -41,7 +41,7 @@ published (see `.github/workflows/release.yml`).
 
 - Every ~2 minutes (configurable in the plugin's settings tab, 30s-15min
   range) each device exports its local WatchLog titles to
-  `WatchLog/.sync/{deviceId}.json` and imports any peer export files it finds
+  `WatchLog/Sync/{deviceId}.json` and imports any peer export files it finds
   there, merging new/edited titles into its own `data.json`.
 - A title added on one device appears on another after yaos has synced that
   export file and the importing device's next poll cycle runs — expect a
@@ -100,7 +100,7 @@ complete and safe:
    command before uninstalling, or manually copy the newest file from
    `.obsidian/plugins/watchlog-sync-bridge/backups/` over
    `.obsidian/plugins/watchlog/data.json`.
-3. Delete the `WatchLog/.sync/` folder from the vault. yaos will propagate
+3. Delete the `WatchLog/Sync/` folder from the vault. yaos will propagate
    that deletion to your other devices like any other vault file — no yaos
    or WatchLog configuration changes are needed.
 

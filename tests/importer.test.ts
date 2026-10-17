@@ -5,7 +5,7 @@ import { FakeAdapter } from "./fakeAdapter";
 
 const WATCHLOG_PATH = ".obsidian/plugins/watchlog/data.json";
 const BRIDGE_DIR = ".obsidian/plugins/watchlog-sync-bridge";
-const SYNC_DIR = "WatchLog/.sync";
+const SYNC_DIR = "WatchLog/Sync";
 const NOW = 1_700_000_000_000;
 const NOW_ISO = new Date(NOW).toISOString();
 

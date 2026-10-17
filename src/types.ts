@@ -31,7 +31,7 @@ export interface TitleMeta {
 	scalarHash: string;
 }
 
-/** Export file: WatchLog/.sync/{deviceId}.json */
+/** Export file: WatchLog/Sync/{deviceId}.json */
 export interface ExportDoc {
 	schema: 1;
 	deviceId: string;
@@ -66,7 +66,7 @@ export interface BridgeData {
 	/**
 	 * Extends design.md's documented shape with `syncDirPath` (vault-relative
 	 * directory for this device's per-device export file, default
-	 * `WatchLog/.sync` — see `src/settings.ts`): spec.md's User-Configurable
+	 * `WatchLog/Sync` — see `src/settings.ts`): spec.md's User-Configurable
 	 * Settings requirement is explicit that export path SHOULD be
 	 * configurable, which design.md's interface listing omitted. Documented
 	 * here as a design deviation rather than applied silently.

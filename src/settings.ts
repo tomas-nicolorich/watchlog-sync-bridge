@@ -14,8 +14,8 @@ import { DEFAULT_POLL_SECONDS, MAX_POLL_SECONDS, MIN_POLL_SECONDS, clampPollSeco
 import type { BridgeData } from "./types";
 
 /** spec.md "settings for poll interval and export path" — design.md's data
- * flow diagram's `WatchLog/.sync/{deviceId}.json`. */
-export const DEFAULT_SYNC_DIR_PATH = "WatchLog/.sync";
+ * flow diagram's `WatchLog/Sync/{deviceId}.json`. */
+export const DEFAULT_SYNC_DIR_PATH = "WatchLog/Sync";
 
 export type BridgeSettings = BridgeData["settings"];
 
@@ -50,7 +50,10 @@ export function normalizeSyncDirPath(value: string | undefined): string {
 		return DEFAULT_SYNC_DIR_PATH;
 	}
 	const trimmed = value.trim().replace(/^\/+|\/+$/g, "");
-	return trimmed.length > 0 ? trimmed : DEFAULT_SYNC_DIR_PATH;
+	// Obsidian's Vault index skips any dot-prefixed folder, so yaos would
+	// never see (or sync) an export file under one.
+	const hasHiddenSegment = trimmed.split("/").some((segment) => segment.startsWith("."));
+	return trimmed.length > 0 && !hasHiddenSegment ? trimmed : DEFAULT_SYNC_DIR_PATH;
 }
 
 /**

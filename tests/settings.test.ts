@@ -12,15 +12,20 @@ describe("normalizeSyncDirPath (spec: User-Configurable Settings — export path
 	});
 
 	it("trims surrounding whitespace from a custom path", () => {
-		expect(normalizeSyncDirPath("  Movies/.sync  ")).toBe("Movies/.sync");
+		expect(normalizeSyncDirPath("  Movies/Sync  ")).toBe("Movies/Sync");
 	});
 
 	it("strips leading and trailing slashes so the path is always vault-relative", () => {
-		expect(normalizeSyncDirPath("/Movies/.sync/")).toBe("Movies/.sync");
+		expect(normalizeSyncDirPath("/Movies/Sync/")).toBe("Movies/Sync");
 	});
 
 	it("leaves a well-formed custom path unchanged", () => {
-		expect(normalizeSyncDirPath("WatchLog/.sync")).toBe("WatchLog/.sync");
+		expect(normalizeSyncDirPath("WatchLog/Sync")).toBe("WatchLog/Sync");
+	});
+
+	it("falls back to the default for a path with a dot-prefixed folder (invisible to the Vault index)", () => {
+		expect(normalizeSyncDirPath("WatchLog/.sync")).toBe(DEFAULT_SYNC_DIR_PATH);
+		expect(normalizeSyncDirPath(".hidden/Sync")).toBe(DEFAULT_SYNC_DIR_PATH);
 	});
 });
 
