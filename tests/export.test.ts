@@ -5,9 +5,9 @@ import type { TitleEntry, TitleMeta } from "../src/types";
 const NOW = 1_700_000_000_000;
 const NOW_ISO = new Date(NOW).toISOString();
 const WATCHLOG_PATH = ".obsidian/plugins/watchlog/data.json";
-const EXPORT_PATH = "WatchLog/.sync/device-a.json";
+const EXPORT_PATH = "WatchLog/Sync/device-a.json";
 
-type Call = { op: "read" | "write" | "rename"; path: string; to?: string };
+type Call = { op: "read" | "write" | "rename" | "exists" | "remove"; path: string; to?: string };
 
 class FakeAdapter implements ExportAdapter {
 	files = new Map<string, string>();
@@ -39,8 +39,21 @@ class FakeAdapter implements ExportAdapter {
 		if (content === undefined) {
 			throw new Error(`rename source not found: ${oldPath}`);
 		}
+		if (this.files.has(newPath)) {
+			throw new Error("Destination file already exists!");
+		}
 		this.files.set(newPath, content);
 		this.files.delete(oldPath);
+	}
+
+	async exists(path: string): Promise<boolean> {
+		this.calls.push({ op: "exists", path });
+		return this.files.has(path);
+	}
+
+	async remove(path: string): Promise<void> {
+		this.calls.push({ op: "remove", path });
+		this.files.delete(path);
 	}
 }
 
@@ -122,7 +135,7 @@ describe("runExportCycle", () => {
 		expect(written.schema).toBe(1);
 	});
 
-	it("writes the export file atomically via a temp-path write followed by a rename, never a direct write to the final path (spec: Export write is atomic)", async () => {
+	it("writes the export file in place, never via temp file, remove, or rename (yaos syncs those as a delete)", async () => {
 		const adapter = new FakeAdapter({ [WATCHLOG_PATH]: JSON.stringify({ titles: [] }) });
 
 		await runExportCycle({
@@ -135,18 +148,39 @@ describe("runExportCycle", () => {
 			nowIso: NOW_ISO,
 		});
 
-		const directWritesToFinalPath = adapter.calls.filter((c) => c.op === "write" && c.path === EXPORT_PATH);
-		expect(directWritesToFinalPath).toEqual([]);
+		const mutations = adapter.calls.filter((c) => c.op !== "read" && c.op !== "exists");
+		expect(mutations).toEqual([{ op: "write", path: EXPORT_PATH }]);
+	});
 
-		const tempWrite = adapter.calls.find((c) => c.op === "write" && c.path !== EXPORT_PATH);
-		expect(tempWrite).toBeDefined();
+	it("overwrites an existing export file on a subsequent cycle", async () => {
+		const adapter = new FakeAdapter({ [WATCHLOG_PATH]: JSON.stringify({ titles: [{ id: "a", rating: 1 }] }) });
 
-		const rename = adapter.calls.find((c) => c.op === "rename");
-		expect(rename?.path).toBe(tempWrite?.path);
-		expect(rename?.to).toBe(EXPORT_PATH);
+		await runExportCycle({
+			adapter,
+			watchlogDataPath: WATCHLOG_PATH,
+			exportPath: EXPORT_PATH,
+			deviceId: "device-a",
+			priorTitleState: {},
+			now: NOW,
+			nowIso: NOW_ISO,
+		});
 
-		expect(adapter.files.has(EXPORT_PATH)).toBe(true);
-		expect(adapter.files.has(tempWrite?.path as string)).toBe(false);
+		adapter.files.set(WATCHLOG_PATH, JSON.stringify({ titles: [{ id: "a", rating: 9 }] }));
+
+		await expect(
+			runExportCycle({
+				adapter,
+				watchlogDataPath: WATCHLOG_PATH,
+				exportPath: EXPORT_PATH,
+				deviceId: "device-a",
+				priorTitleState: {},
+				now: NOW,
+				nowIso: NOW_ISO,
+			}),
+		).resolves.toBeDefined();
+
+		const written = JSON.parse(adapter.files.get(EXPORT_PATH) as string);
+		expect(written.titles.a.rating).toBe(9);
 	});
 
 	it("reconciles titleState using the current titles and returns it alongside the doc (design.md exportIfChanged sequence)", async () => {

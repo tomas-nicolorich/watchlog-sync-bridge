@@ -19,14 +19,13 @@ import type { ExportDoc, TitleEntry, TitleMeta } from "./types";
 export interface ExportAdapter {
 	read(path: string): Promise<string>;
 	write(path: string, data: string): Promise<void>;
-	rename(oldPath: string, newPath: string): Promise<void>;
 }
 
 export interface ExportCycleParams {
 	adapter: ExportAdapter;
 	/** WatchLog's own data file, e.g. ".obsidian/plugins/watchlog/data.json". Read-only. */
 	watchlogDataPath: string;
-	/** This device's own vault-visible peer file, e.g. "WatchLog/.sync/{deviceId}.json". */
+	/** This device's own vault-visible peer file, e.g. "WatchLog/Sync/{deviceId}.json". */
 	exportPath: string;
 	deviceId: string;
 	deviceLabel?: string;
@@ -89,8 +88,14 @@ export function buildExportDoc(
 /**
  * Reads WatchLog's local `data.json` (read-only), reconciles the bridge's
  * `titleState` clock against the current titles, builds this device's
- * export snapshot, and writes it atomically (temp-file-then-rename —
- * spec.md "Export write is atomic") to its own per-device export path.
+ * export snapshot, and writes it in place to its own per-device export path.
+ *
+ * Deliberately NOT temp-file-then-rename (a deviation from spec.md "Export
+ * write is atomic"): yaos only syncs a blob rename when it already tracks the
+ * source path, so the write-temp/remove/rename sequence reached peers as a
+ * bare delete and the export never arrived (real-device test, 2026-10-17).
+ * A torn read on a peer is already safe: `importer.ts` rejects unparseable
+ * peer files and retries on the next poll.
  */
 export async function runExportCycle(params: ExportCycleParams): Promise<ExportCycleResult> {
 	const raw = await params.adapter.read(params.watchlogDataPath);
@@ -100,7 +105,7 @@ export async function runExportCycle(params: ExportCycleParams): Promise<ExportC
 	const exportedAtIso = params.nowIso ?? new Date(params.now).toISOString();
 	const doc = buildExportDoc(titles, titleState, params.deviceId, exportedAtIso, params.deviceLabel);
 
-	await writeAtomic(params.adapter, params.exportPath, JSON.stringify(doc));
+	await params.adapter.write(params.exportPath, JSON.stringify(doc));
 
 	return { doc, titleState };
 }
@@ -114,17 +119,4 @@ export async function runExportCycle(params: ExportCycleParams): Promise<ExportC
 export function parseTitles(raw: string): TitleEntry[] {
 	const parsed = JSON.parse(raw) as { titles?: unknown };
 	return Array.isArray(parsed.titles) ? (parsed.titles as TitleEntry[]) : [];
-}
-
-/**
- * Atomic write: write to a sibling temp path, then rename over the final
- * path, so a concurrent reader (yaos's sync engine) only ever observes the
- * fully-old or fully-new content, never a partial file (spec.md "Export
- * write is atomic"). The temp path is never the final path, so a direct
- * write to `path` never happens.
- */
-async function writeAtomic(adapter: ExportAdapter, path: string, content: string): Promise<void> {
-	const tempPath = `${path}.tmp`;
-	await adapter.write(tempPath, content);
-	await adapter.rename(tempPath, path);
 }
