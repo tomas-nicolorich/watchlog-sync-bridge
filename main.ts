@@ -163,17 +163,16 @@ export default class WatchLogSyncBridgePlugin extends Plugin {
 		return `${this.data.settings.syncDirPath}/${sanitizeDeviceIdForFilename(this.data.deviceId)}.json`;
 	}
 
-	private async ensureSyncDirExists(): Promise<void> {
-		const syncDir = this.data.settings.syncDirPath;
-		if (!(await this.app.vault.adapter.exists(syncDir))) {
-			await this.app.vault.adapter.mkdir(syncDir);
+	private async ensureDirExists(dir: string): Promise<void> {
+		if (!(await this.app.vault.adapter.exists(dir))) {
+			await this.app.vault.adapter.mkdir(dir);
 		}
 	}
 
 	/** spec.md "Export Trigger and Content" via `export.ts`'s already-tested
 	 * `runExportCycle`. */
 	private async exportOnce(): Promise<void> {
-		await this.ensureSyncDirExists();
+		await this.ensureDirExists(this.data.settings.syncDirPath);
 
 		const result = await runExportCycle({
 			adapter: this.app.vault.adapter,
@@ -195,6 +194,9 @@ export default class WatchLogSyncBridgePlugin extends Plugin {
 	 * Fallback UX"). */
 	private async importOnce(): Promise<void> {
 		const selfExportFileName = `${sanitizeDeviceIdForFilename(this.data.deviceId)}.json`;
+		// watchlogIo writes its first-merge backup here; mobile's adapter.write()
+		// fails when the parent folder is missing.
+		await this.ensureDirExists(`${this.bridgeDir}/backups`);
 
 		const result = await runImportCycle({
 			adapter: this.app.vault.adapter as ImporterAdapter,
