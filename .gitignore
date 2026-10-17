@@ -7,5 +7,4 @@ coverage/
 # AI tool session/local state — not project content
 .claude/
 .engram/
-.dual-graph/
 .atl/
