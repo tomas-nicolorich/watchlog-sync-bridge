@@ -125,3 +125,52 @@ describe("Scheduler single-flight lock (design.md 'Single-flight: the scheduler 
 		}
 	});
 });
+
+describe("Scheduler.trigger (event-driven sync)", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it("collapses a burst of triggers on one key into a single run after the last one", async () => {
+		const task = vi.fn().mockResolvedValue(undefined);
+		const scheduler = new Scheduler();
+
+		scheduler.trigger("k", 1000, task);
+		await vi.advanceTimersByTimeAsync(500);
+		scheduler.trigger("k", 1000, task);
+		await vi.advanceTimersByTimeAsync(999);
+		expect(task).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(1);
+		expect(task).toHaveBeenCalledTimes(1);
+	});
+
+	it("retries instead of dropping when the lock is held", async () => {
+		const task = vi.fn().mockResolvedValue(undefined);
+		const scheduler = new Scheduler();
+		let release: () => void = () => {};
+		void scheduler.runExclusive(() => new Promise<void>((resolve) => (release = resolve)));
+
+		scheduler.trigger("k", 1000, task);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(task).not.toHaveBeenCalled();
+
+		release();
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(task).toHaveBeenCalledTimes(1);
+	});
+
+	it("cancels pending triggers on stop()", async () => {
+		const task = vi.fn().mockResolvedValue(undefined);
+		const scheduler = new Scheduler();
+
+		scheduler.trigger("k", 1000, task);
+		scheduler.stop();
+		await vi.advanceTimersByTimeAsync(5000);
+		expect(task).not.toHaveBeenCalled();
+	});
+});

@@ -53,6 +53,7 @@ export type SchedulerTask = () => Promise<void>;
 export class Scheduler {
 	private intervalId: ReturnType<typeof setInterval> | undefined;
 	private locked = false;
+	private readonly pending = new Map<string, ReturnType<typeof setTimeout>>();
 
 	/**
 	 * Starts (or restarts) the recurring timer at `seconds` intervals. Each
@@ -72,12 +73,45 @@ export class Scheduler {
 		}, seconds * 1000);
 	}
 
-	/** Stops the recurring timer. Safe to call when not currently running. */
+	/** Stops the recurring timer and any pending triggers. Safe to call when
+	 * not currently running. */
 	stop(): void {
 		if (this.intervalId !== undefined) {
 			clearInterval(this.intervalId);
 			this.intervalId = undefined;
 		}
+		for (const timeoutId of this.pending.values()) {
+			clearTimeout(timeoutId);
+		}
+		this.pending.clear();
+	}
+
+	/**
+	 * Debounced, event-driven run of `task`: a burst of triggers sharing `key`
+	 * collapses into one run `delayMs` after the last trigger. Unlike a poll
+	 * tick, a trigger that finds the lock held is retried after another
+	 * `delayMs` instead of dropped — the change that fired it must not be lost.
+	 */
+	trigger(key: string, delayMs: number, task: SchedulerTask): void {
+		const existing = this.pending.get(key);
+		if (existing !== undefined) {
+			clearTimeout(existing);
+		}
+		this.pending.set(
+			key,
+			setTimeout(() => {
+				this.pending.delete(key);
+				void this.runExclusive(task)
+					.then((ran) => {
+						if (!ran) {
+							this.trigger(key, delayMs, task);
+						}
+					})
+					.catch(() => {
+						// Same contract as `start()`: the task does its own logging.
+					});
+			}, delayMs),
+		);
 	}
 
 	/**

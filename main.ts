@@ -1,4 +1,5 @@
 import { Notice, Plugin } from "obsidian";
+import type { EventRef } from "obsidian";
 import type { ImporterAdapter } from "./src/importer";
 import { runImportCycle } from "./src/importer";
 import { runExportCycle } from "./src/export";
@@ -14,6 +15,10 @@ import type { BridgeData } from "./src/types";
 const WATCHLOG_DATA_PATH = ".obsidian/plugins/watchlog/data.json";
 
 type SyncStatus = "idle" | "synced" | "merged" | "error";
+
+/** Quiet period after a file event before syncing, so a burst of writes
+ * (WatchLog saving, yaos applying a blob) collapses into one run. */
+const TRIGGER_DEBOUNCE_MS = 1500;
 
 /**
  * WatchLog Sync Bridge — lifecycle wiring (design.md "Module Boundaries":
@@ -77,6 +82,58 @@ export default class WatchLogSyncBridgePlugin extends Plugin {
 		});
 
 		this.scheduler.start(this.data.settings.pollSeconds, () => this.tick());
+		this.app.workspace.onLayoutReady(() => this.registerSyncTriggers());
+	}
+
+	/**
+	 * Event-driven sync on top of the poll fallback. Local WatchLog edits
+	 * (its `data.json`, seen via `"raw"`) trigger an export only; a peer's
+	 * export file landing via yaos triggers an import only. Keeping the two
+	 * halves apart is what stops devices ping-ponging: an export always
+	 * rewrites the file (fresh `exportedAt`), but an import that changes
+	 * nothing never touches `data.json`, so the chain ends there.
+	 */
+	private registerSyncTriggers(): void {
+		const triggerExport = () => this.scheduler.trigger("export", TRIGGER_DEBOUNCE_MS, () => this.guarded("export", () => this.exportOnce()));
+		const triggerImport = () => this.scheduler.trigger("import", TRIGGER_DEBOUNCE_MS, () => this.guarded("import", () => this.importOnce()));
+		const isPeerExport = (path: string) => {
+			const dir = `${this.data.settings.syncDirPath}/`;
+			return path.startsWith(dir) && path.endsWith(".json") && path !== this.exportPath();
+		};
+
+		// "raw" is undocumented in obsidian.d.ts but fires on desktop and
+		// mobile for in-process writes (spike-findings.md).
+		const vault = this.app.vault as unknown as {
+			on(name: "raw", callback: (path: string) => unknown): EventRef;
+		};
+		this.registerEvent(
+			vault.on("raw", (path) => {
+				if (path === WATCHLOG_DATA_PATH) {
+					triggerExport();
+				}
+			}),
+		);
+		this.registerEvent(this.app.vault.on("modify", (file) => isPeerExport(file.path) && triggerImport()));
+		this.registerEvent(this.app.vault.on("create", (file) => isPeerExport(file.path) && triggerImport()));
+
+		// Mobile suspends timers in the background; catch up on return.
+		this.registerDomEvent(document, "visibilitychange", () => {
+			if (document.visibilityState === "visible") {
+				this.scheduler.trigger("tick", TRIGGER_DEBOUNCE_MS, () => this.tick());
+			}
+		});
+
+		this.scheduler.trigger("tick", TRIGGER_DEBOUNCE_MS, () => this.tick());
+	}
+
+	/** Logs and flags a failed triggered run, like `tick()` does per half. */
+	private async guarded(label: string, task: () => Promise<void>): Promise<void> {
+		try {
+			await task();
+		} catch (err) {
+			this.log(`${label} cycle failed`, err);
+			this.setStatus("error");
+		}
 	}
 
 	onunload(): void {
